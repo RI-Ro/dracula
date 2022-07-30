@@ -1,0 +1,127 @@
+{% load static %}
+
+<head>
+      <meta charset="utf-8"/>
+  <!-- CSS  -->
+      <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+      <link href="{% static 'css/style.css' %}" rel="stylesheet">
+  <!-- JavaScript -->
+      <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+      <script src="{% static 'js/jquery.js' %}"></script>
+      <script type="text/javascript" src="{% static 'js/raphael-min.js' %}"></script>
+      <script type="text/javascript" src="{% static 'js/dracula_graffle.js' %}"></script>
+      <script type="text/javascript" src="{% static 'js/dracula_graph.js' %}"></script>
+</head>
+
+
+
+<body>
+  <div>
+
+      <select name="region_select"  id="region_select">
+        <option  hidden>Выбор региона</option>
+        {% for region in regions %}
+          <option value='{{region.id}}'>{{region.title}}</option>
+        {% endfor %}
+      </select>
+      <select name="node_select"  id="node_select">
+        <option  hidden>Выбор узла (подразделения)</option>
+        {% for node in nodes %}
+          <option value='{{node.id}}'>{{node.title}}</option>
+        {% endfor %}
+      </select>
+  </div>
+
+  <div id="canvas">
+  </div>
+
+    <div class="scroll-table">
+    	<table>
+    		<thead>
+    			<tr>
+            <th>Номер связи</th>
+    				<th>Точка1</th>
+    				<th>Точка2</th>
+    				<th>Пропускная способность</th>
+    			</tr>
+    		</thead>
+    	</table>
+    	<div class="scroll-table-body">
+        <table>
+          <tbody id='table_body'>
+
+          </tbody>
+        </table>
+    	</div>
+    </div>
+</body>
+
+<script type="text/javascript">
+  function region_select(json1) {
+      var t = document.getElementById("table_body");
+      t.innerHTML = "";
+      var c = document.getElementById("canvas");
+      c.innerHTML = "";
+      var g = new Graph();
+      var json2 = json1;
+      var nameLengths = json2['EDGE'].map(function(name) {
+        return Object.keys(name);
+      });
+      for (i=0; i<nameLengths.length; i++){
+        g.addEdge(json2['EDGE'][i][nameLengths[i]]['point1'],
+                  json2['EDGE'][i][nameLengths[i]]['point2']);
+        t.innerHTML += `<tr>
+                          <td>${json2['EDGE'][i][nameLengths[i]]['title']}</td>
+                          <td>${json2['EDGE'][i][nameLengths[i]]['point1']}</td>
+                          <td>${json2['EDGE'][i][nameLengths[i]]['point2']}</td>
+                          <td>${json2['EDGE'][i][nameLengths[i]]['weigth']}</td>
+                        </tr>`;
+     };
+      var layouter = new Graph.Layout.Spring(g);
+      layouter.layout();
+      width=document.body.clientWidth;
+      height=document.body.clientHeight;
+      var renderer = new Graph.Renderer.Raphael('canvas', g, width-150, height-150);
+      renderer.draw();
+};
+
+region_select({{json1 | safe }});
+
+
+
+
+$(function() {
+    $('#node_select').change(function() {
+        $.ajax({
+            method: "POST",
+            url: "/get_json_node/",
+            data: {
+                node_id: $(this).val(),
+                csrfmiddlewaretoken : '{{ csrf_token }}',
+            },
+            success: function(data){
+                region_select(data);
+            }
+        });
+    });
+});
+
+$(function() {
+    $('#region_select').change(function() {
+        $.ajax({
+            method: "POST",
+            url: "/get_json_region/",
+            data: {
+                region_id: $(this).val(),
+                csrfmiddlewaretoken : '{{ csrf_token }}',
+            },
+            success: function(data){
+                region_select(data);
+            }
+        });
+    });
+});
+
+
+
+</script>
